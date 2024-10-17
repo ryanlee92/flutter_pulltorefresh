@@ -246,7 +246,8 @@ abstract class RefreshIndicatorState<T extends RefreshIndicator> extends State<T
             if (!_inVisual()) {
               mode = RefreshStatus.idle;
             } else {
-              activity!.delegate.goBallistic(0.0);
+              // activity!.delegate.goBallistic(0.0);
+              _position!.animateTo(0.0, duration: Duration(milliseconds: 250), curve: Curves.easeInOut);
             }
           }
         });
