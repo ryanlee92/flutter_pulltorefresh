@@ -119,7 +119,7 @@ class RefreshPhysics extends ScrollPhysics {
         return parent!.applyPhysicsToUserOffset(position, offset);
       }
     }
-    if (position.outOfRange || controller!.headerMode!.value == RefreshStatus.twoLeveling) {
+    if (position.outOfRange || position.atEdge || controller!.headerMode!.value == RefreshStatus.twoLeveling) {
       final double overscrollPastStart = math.max(position.minScrollExtent - position.pixels, 0.0);
       final double overscrollPastEnd = math.max(position.pixels - (controller!.headerMode!.value == RefreshStatus.twoLeveling ? 0.0 : position.maxScrollExtent), 0.0);
       final double overscrollPast = math.max(overscrollPastStart, overscrollPastEnd);
@@ -224,12 +224,12 @@ class RefreshPhysics extends ScrollPhysics {
       if (velocity < 0.0) {
         return parent!.createBallisticSimulation(position, velocity);
       }
-    } else if (!position.outOfRange) {
+    } else if (!(position.outOfRange || position.atEdge)) {
       if ((velocity < 0.0 && !enablePullDown) || (velocity > 0 && !enablePullUp)) {
         return parent!.createBallisticSimulation(position, velocity);
       }
     }
-    if ((position.pixels > 0 && controller!.headerMode!.value == RefreshStatus.twoLeveling) || position.outOfRange) {
+    if ((position.pixels > 0 && controller!.headerMode!.value == RefreshStatus.twoLeveling) || position.outOfRange || position.atEdge) {
       return BouncingScrollSimulation(
         spring: springDescription ?? spring,
         position: position.pixels,

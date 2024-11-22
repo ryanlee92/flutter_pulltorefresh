@@ -583,7 +583,7 @@ class RefreshController {
   /// but ScrollPhysics didn't provide one way to spring back when outOfEdge(stopped by applyBouncingCondition return != 0.0)
   /// so for making it spring back, it should be trigger goBallistic make it spring back
   void _listenScrollEnd() {
-    if (position != null && position!.outOfRange) {
+    if (position != null && (position!.outOfRange || position!.atEdge)) {
       position?.activity?.applyNewDimensions();
     }
   }

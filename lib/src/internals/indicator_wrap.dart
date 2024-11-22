@@ -356,7 +356,7 @@ abstract class LoadIndicatorState<T extends LoadIndicator> extends State<T> with
       // this line for patch bug temporary:indicator disappears fastly when load more complete
       if (mounted) Scrollable.of(context).position.correctBy(0.00001);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _position?.outOfRange == true) {
+        if (mounted && (_position?.outOfRange == true || _position?.atEdge == true)) {
           activity!.delegate.goBallistic(0);
         }
       });
@@ -391,7 +391,7 @@ abstract class LoadIndicatorState<T extends LoadIndicator> extends State<T> with
     if (mode == LoadStatus.idle || mode == LoadStatus.failed || mode == LoadStatus.noMore) {
       // #292,#265,#208
       // stop the slow bouncing when load more too fast
-      if (_position!.activity!.velocity < 0 && _lastMode == LoadStatus.loading && !_position!.outOfRange && _position is ScrollActivityDelegate) {
+      if (_position!.activity!.velocity < 0 && _lastMode == LoadStatus.loading && !(_position!.outOfRange || _position!.atEdge) && _position is ScrollActivityDelegate) {
         _position!.beginActivity(IdleScrollActivity(_position as ScrollActivityDelegate));
       }
 
