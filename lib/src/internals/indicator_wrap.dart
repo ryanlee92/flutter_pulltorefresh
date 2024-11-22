@@ -421,6 +421,13 @@ abstract class LoadIndicatorState<T extends LoadIndicator> extends State<T> with
     if (!mounted || _isHide || LoadStatus.loading == mode || floating) {
       return;
     }
+
+    if (activity is IdleScrollActivity) {
+      if (offset == 0) {
+        enterLoading();
+      }
+    }
+
     if (activity is DragScrollActivity) {
       if (_checkIfCanLoading()) {
         mode = LoadStatus.canLoading;
