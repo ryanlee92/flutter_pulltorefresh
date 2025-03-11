@@ -85,11 +85,9 @@ class RefreshPhysics extends ScrollPhysics {
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    // TODO: implement shouldAcceptUserOffset
-    if (parent is NeverScrollableScrollPhysics) {
-      return false;
-    }
-    return true;
+    final superOffset = parent?.shouldAcceptUserOffset(position);
+    if (superOffset == false) return false;
+    return super.shouldAcceptUserOffset(position);
   }
 
   //  It seem that it was odd to do so,but I have no choose to do this for updating the state value(enablePullDown and enablePullUp),
@@ -108,7 +106,9 @@ class RefreshPhysics extends ScrollPhysics {
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
-    // TODO: implement applyPhysicsToUserOffset
+    final parentOffset = parent?.applyPhysicsToUserOffset(position, offset);
+    if (parentOffset == 0) return 0;
+
     viewportRender ??= findViewport(controller!.position?.context.storageContext);
     if (controller!.headerMode!.value == RefreshStatus.twoLeveling) {
       if (offset > 0.0) {
@@ -121,7 +121,8 @@ class RefreshPhysics extends ScrollPhysics {
     }
     if (position.outOfRange || position.atEdge || controller!.headerMode!.value == RefreshStatus.twoLeveling) {
       final double overscrollPastStart = math.max(position.minScrollExtent - position.pixels, 0.0);
-      final double overscrollPastEnd = math.max(position.pixels - (controller!.headerMode!.value == RefreshStatus.twoLeveling ? 0.0 : position.maxScrollExtent), 0.0);
+      final double overscrollPastEnd =
+          math.max(position.pixels - (controller!.headerMode!.value == RefreshStatus.twoLeveling ? 0.0 : position.maxScrollExtent), 0.0);
       final double overscrollPast = math.max(overscrollPastStart, overscrollPastEnd);
       final bool easing = (overscrollPastStart > 0.0 && offset < 0.0) || (overscrollPastEnd > 0.0 && offset > 0.0);
 
@@ -174,7 +175,9 @@ class RefreshPhysics extends ScrollPhysics {
     if (enablePullUp) {
       final RenderSliverLoading? sliverFooter = viewportRender!.lastChild as RenderSliverLoading?;
       bottomExtra = (!notFull && sliverFooter!.geometry!.scrollExtent != 0) ||
-              (notFull && controller!.footerStatus == LoadStatus.noMore && !RefreshConfiguration.of(controller!.position!.context.storageContext)!.enableLoadingWhenNoData) ||
+              (notFull &&
+                  controller!.footerStatus == LoadStatus.noMore &&
+                  !RefreshConfiguration.of(controller!.position!.context.storageContext)!.enableLoadingWhenNoData) ||
               (notFull && (RefreshConfiguration.of(controller!.position!.context.storageContext)?.hideFooterWhenNotFull ?? false))
           ? 0.0
           : sliverFooter!.layoutExtent;
