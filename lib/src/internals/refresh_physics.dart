@@ -234,7 +234,7 @@ class RefreshPhysics extends ScrollPhysics {
     }
     if ((position.pixels > 0 && controller!.headerMode!.value == RefreshStatus.twoLeveling) || position.outOfRange || position.atEdge) {
       return BouncingScrollSimulation(
-        spring: springDescription ?? spring,
+        spring: BouncingScrollPhysics().spring,
         position: position.pixels,
         // -1.0 avoid stop springing back ,and release gesture
         velocity: velocity * 0.91,
