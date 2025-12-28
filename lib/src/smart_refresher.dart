@@ -230,8 +230,8 @@ class SmartRefresher extends StatefulWidget {
     this.scrollController,
     this.padding,
     this.hitTestBehavior,
-  }) : builder = null,
-       super(key: key);
+  })  : builder = null,
+        super(key: key);
 
   /// creates a widget help attach the refresh and load more function
   /// controller must not be null,builder must not be null
@@ -252,18 +252,18 @@ class SmartRefresher extends StatefulWidget {
     this.onTwoLevel,
     this.padding,
     this.hitTestBehavior,
-  }) : header = null,
-       footer = null,
-       child = null,
-       scrollController = null,
-       scrollDirection = null,
-       physics = null,
-       reverse = null,
-       semanticChildCount = null,
-       dragStartBehavior = null,
-       cacheExtent = null,
-       primary = null,
-       super(key: key);
+  })  : header = null,
+        footer = null,
+        child = null,
+        scrollController = null,
+        scrollDirection = null,
+        physics = null,
+        reverse = null,
+        semanticChildCount = null,
+        dragStartBehavior = null,
+        cacheExtent = null,
+        primary = null,
+        super(key: key);
 
   static SmartRefresher? of(BuildContext? context) {
     return context!.findAncestorWidgetOfExactType<SmartRefresher>();
@@ -308,6 +308,15 @@ class SmartRefresherState extends State<SmartRefresher> {
     } else if (child is! Scrollable) {
       slivers = [SliverRefreshBody(child: child ?? Container())];
     }
+
+    // Apply padding to content slivers if provided (before adding header/footer)
+    if (widget.padding != null && slivers != null && slivers.isNotEmpty) {
+      // Wrap each content sliver with SliverPadding
+      slivers = slivers.map((sliver) {
+        return SliverPadding(sliver: sliver, padding: widget.padding!);
+      }).toList();
+    }
+
     if (widget.enablePullDown || widget.enableTwoLevel) {
       slivers?.insert(0, widget.header ?? (configuration?.headerBuilder != null ? configuration?.headerBuilder!() : null) ?? defaultHeader);
     }
@@ -320,8 +329,7 @@ class SmartRefresherState extends State<SmartRefresher> {
   }
 
   ScrollPhysics _getScrollPhysics(RefreshConfiguration? conf, ScrollPhysics physics) {
-    final bool isBouncingPhysics =
-        physics is BouncingScrollPhysics ||
+    final bool isBouncingPhysics = physics is BouncingScrollPhysics ||
         (physics is AlwaysScrollableScrollPhysics && ScrollConfiguration.of(context).getScrollPhysics(context).runtimeType == BouncingScrollPhysics);
     return _physics = RefreshPhysics(
       dragSpeedRatio: conf?.dragSpeedRatio ?? 1,
@@ -390,6 +398,7 @@ class SmartRefresherState extends State<SmartRefresher> {
         slivers: slivers!,
         dragStartBehavior: dragStartBehavior ?? DragStartBehavior.start,
         reverse: reverse ?? false,
+        hitTestBehavior: widget.hitTestBehavior ?? HitTestBehavior.opaque,
       );
     } else {
       body = Scrollable(
@@ -398,16 +407,37 @@ class SmartRefresherState extends State<SmartRefresher> {
         axisDirection: childView.axisDirection,
         semanticChildCount: childView.semanticChildCount,
         dragStartBehavior: childView.dragStartBehavior,
+        hitTestBehavior: widget.hitTestBehavior ?? HitTestBehavior.opaque,
         viewportBuilder: (context, offset) {
           Viewport viewport = childView.viewportBuilder(context, offset) as Viewport;
+          List<Widget> children = List.from(viewport.children);
+
+          // Apply padding to content slivers if provided (before adding header/footer)
+          if (widget.padding != null && children.isNotEmpty) {
+            children = children.map((child) {
+              return SliverPadding(sliver: child, padding: widget.padding!);
+            }).toList();
+          }
+
+          // Add header and footer
           if (widget.enablePullDown) {
-            viewport.children.insert(0, widget.header ?? (conf?.headerBuilder != null ? conf?.headerBuilder!() : null) ?? defaultHeader);
+            children.insert(0, widget.header ?? (conf?.headerBuilder != null ? conf?.headerBuilder!() : null) ?? defaultHeader);
           }
-          //insert header or footer
           if (widget.enablePullUp) {
-            viewport.children.add(widget.footer ?? (conf?.footerBuilder != null ? conf?.footerBuilder!() : null) ?? defaultFooter);
+            children.add(widget.footer ?? (conf?.footerBuilder != null ? conf?.footerBuilder!() : null) ?? defaultFooter);
           }
-          return viewport;
+
+          return Viewport(
+            offset: viewport.offset,
+            axisDirection: viewport.axisDirection,
+            crossAxisDirection: viewport.crossAxisDirection,
+            anchor: viewport.anchor,
+            cacheExtent: viewport.cacheExtent,
+            cacheExtentStyle: viewport.cacheExtentStyle,
+            center: viewport.center,
+            clipBehavior: viewport.clipBehavior,
+            slivers: children,
+          );
         },
       );
     }
@@ -485,26 +515,25 @@ class SmartRefresherState extends State<SmartRefresher> {
   Widget build(BuildContext context) {
     final RefreshConfiguration? configuration = RefreshConfiguration.of(context);
     Widget? body;
-    if (widget.builder != null)
+    if (widget.builder != null) {
       body = widget.builder!(context, _getScrollPhysics(configuration, AlwaysScrollableScrollPhysics()) as RefreshPhysics);
-    else {
+
+      // Apply padding if provided
+      if (widget.padding != null) {
+        body = Padding(padding: widget.padding!, child: body);
+      }
+
+      // Apply hitTestBehavior if provided
+      if (widget.hitTestBehavior != null) {
+        body = GestureDetector(behavior: widget.hitTestBehavior!, child: body);
+      }
+    } else {
       List<Widget>? slivers = _buildSliversByChild(context, widget.child, configuration);
       body = _buildBodyBySlivers(widget.child, slivers, configuration);
     }
     if (configuration == null) {
       body = RefreshConfiguration(child: body!);
     }
-
-    // Apply padding if provided
-    if (widget.padding != null) {
-      body = Padding(padding: widget.padding!, child: body);
-    }
-
-    // Apply hitTestBehavior if provided
-    if (widget.hitTestBehavior != null) {
-      body = GestureDetector(behavior: widget.hitTestBehavior!, child: body);
-    }
-
     return LayoutBuilder(
       builder: (c2, cons) {
         viewportExtent = cons.biggest.height;
@@ -848,11 +877,11 @@ class RefreshConfiguration extends InheritedWidget {
     this.enableLoadMoreVibrate = false,
     this.topHitBoundary,
     this.bottomHitBoundary,
-  }) : assert(headerTriggerDistance > 0),
-       assert(twiceTriggerDistance > 0),
-       assert(closeTwoLevelDistance > 0),
-       assert(dragSpeedRatio > 0),
-       super(key: key, child: child);
+  })  : assert(headerTriggerDistance > 0),
+        assert(twiceTriggerDistance > 0),
+        assert(closeTwoLevelDistance > 0),
+        assert(dragSpeedRatio > 0),
+        super(key: key, child: child);
 
   /// Construct RefreshConfiguration to copy attributes from ancestor nodes
   /// If the parameter is null, it will automatically help you to absorb the attributes of your ancestor Refresh Configuration, instead of having to copy them manually by yourself.
@@ -885,34 +914,34 @@ class RefreshConfiguration extends InheritedWidget {
     bool? enableRefreshVibrate,
     bool? enableLoadMoreVibrate,
     bool? hideFooterWhenNotFull,
-  }) : assert(
-         RefreshConfiguration.of(context) != null,
-         "search RefreshConfiguration anscestor return null,please  Make sure that RefreshConfiguration is the ancestor of that element",
-       ),
-       headerBuilder = headerBuilder ?? RefreshConfiguration.of(context)!.headerBuilder,
-       footerBuilder = footerBuilder ?? RefreshConfiguration.of(context)!.footerBuilder,
-       dragSpeedRatio = dragSpeedRatio ?? RefreshConfiguration.of(context)!.dragSpeedRatio,
-       twiceTriggerDistance = twiceTriggerDistance ?? RefreshConfiguration.of(context)!.twiceTriggerDistance,
-       headerTriggerDistance = headerTriggerDistance ?? RefreshConfiguration.of(context)!.headerTriggerDistance,
-       footerTriggerDistance = footerTriggerDistance ?? RefreshConfiguration.of(context)!.footerTriggerDistance,
-       springDescription = springDescription ?? RefreshConfiguration.of(context)!.springDescription,
-       hideFooterWhenNotFull = hideFooterWhenNotFull ?? RefreshConfiguration.of(context)!.hideFooterWhenNotFull,
-       maxOverScrollExtent = maxOverScrollExtent ?? RefreshConfiguration.of(context)!.maxOverScrollExtent,
-       maxUnderScrollExtent = maxUnderScrollExtent ?? RefreshConfiguration.of(context)!.maxUnderScrollExtent,
-       topHitBoundary = topHitBoundary ?? RefreshConfiguration.of(context)!.topHitBoundary,
-       bottomHitBoundary = bottomHitBoundary ?? RefreshConfiguration.of(context)!.bottomHitBoundary,
-       skipCanRefresh = skipCanRefresh ?? RefreshConfiguration.of(context)!.skipCanRefresh,
-       enableScrollWhenRefreshCompleted = enableScrollWhenRefreshCompleted ?? RefreshConfiguration.of(context)!.enableScrollWhenRefreshCompleted,
-       enableScrollWhenTwoLevel = enableScrollWhenTwoLevel ?? RefreshConfiguration.of(context)!.enableScrollWhenTwoLevel,
-       enableBallisticRefresh = enableBallisticRefresh ?? RefreshConfiguration.of(context)!.enableBallisticRefresh,
-       enableBallisticLoad = enableBallisticLoad ?? RefreshConfiguration.of(context)!.enableBallisticLoad,
-       enableLoadingWhenNoData = enableLoadingWhenNoData ?? RefreshConfiguration.of(context)!.enableLoadingWhenNoData,
-       enableLoadingWhenFailed = enableLoadingWhenFailed ?? RefreshConfiguration.of(context)!.enableLoadingWhenFailed,
-       closeTwoLevelDistance = closeTwoLevelDistance ?? RefreshConfiguration.of(context)!.closeTwoLevelDistance,
-       enableRefreshVibrate = enableRefreshVibrate ?? RefreshConfiguration.of(context)!.enableRefreshVibrate,
-       enableLoadMoreVibrate = enableLoadMoreVibrate ?? RefreshConfiguration.of(context)!.enableLoadMoreVibrate,
-       shouldFooterFollowWhenNotFull = shouldFooterFollowWhenNotFull ?? RefreshConfiguration.of(context)!.shouldFooterFollowWhenNotFull,
-       super(key: key, child: child);
+  })  : assert(
+          RefreshConfiguration.of(context) != null,
+          "search RefreshConfiguration anscestor return null,please  Make sure that RefreshConfiguration is the ancestor of that element",
+        ),
+        headerBuilder = headerBuilder ?? RefreshConfiguration.of(context)!.headerBuilder,
+        footerBuilder = footerBuilder ?? RefreshConfiguration.of(context)!.footerBuilder,
+        dragSpeedRatio = dragSpeedRatio ?? RefreshConfiguration.of(context)!.dragSpeedRatio,
+        twiceTriggerDistance = twiceTriggerDistance ?? RefreshConfiguration.of(context)!.twiceTriggerDistance,
+        headerTriggerDistance = headerTriggerDistance ?? RefreshConfiguration.of(context)!.headerTriggerDistance,
+        footerTriggerDistance = footerTriggerDistance ?? RefreshConfiguration.of(context)!.footerTriggerDistance,
+        springDescription = springDescription ?? RefreshConfiguration.of(context)!.springDescription,
+        hideFooterWhenNotFull = hideFooterWhenNotFull ?? RefreshConfiguration.of(context)!.hideFooterWhenNotFull,
+        maxOverScrollExtent = maxOverScrollExtent ?? RefreshConfiguration.of(context)!.maxOverScrollExtent,
+        maxUnderScrollExtent = maxUnderScrollExtent ?? RefreshConfiguration.of(context)!.maxUnderScrollExtent,
+        topHitBoundary = topHitBoundary ?? RefreshConfiguration.of(context)!.topHitBoundary,
+        bottomHitBoundary = bottomHitBoundary ?? RefreshConfiguration.of(context)!.bottomHitBoundary,
+        skipCanRefresh = skipCanRefresh ?? RefreshConfiguration.of(context)!.skipCanRefresh,
+        enableScrollWhenRefreshCompleted = enableScrollWhenRefreshCompleted ?? RefreshConfiguration.of(context)!.enableScrollWhenRefreshCompleted,
+        enableScrollWhenTwoLevel = enableScrollWhenTwoLevel ?? RefreshConfiguration.of(context)!.enableScrollWhenTwoLevel,
+        enableBallisticRefresh = enableBallisticRefresh ?? RefreshConfiguration.of(context)!.enableBallisticRefresh,
+        enableBallisticLoad = enableBallisticLoad ?? RefreshConfiguration.of(context)!.enableBallisticLoad,
+        enableLoadingWhenNoData = enableLoadingWhenNoData ?? RefreshConfiguration.of(context)!.enableLoadingWhenNoData,
+        enableLoadingWhenFailed = enableLoadingWhenFailed ?? RefreshConfiguration.of(context)!.enableLoadingWhenFailed,
+        closeTwoLevelDistance = closeTwoLevelDistance ?? RefreshConfiguration.of(context)!.closeTwoLevelDistance,
+        enableRefreshVibrate = enableRefreshVibrate ?? RefreshConfiguration.of(context)!.enableRefreshVibrate,
+        enableLoadMoreVibrate = enableLoadMoreVibrate ?? RefreshConfiguration.of(context)!.enableLoadMoreVibrate,
+        shouldFooterFollowWhenNotFull = shouldFooterFollowWhenNotFull ?? RefreshConfiguration.of(context)!.shouldFooterFollowWhenNotFull,
+        super(key: key, child: child);
 
   static RefreshConfiguration? of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<RefreshConfiguration>();
