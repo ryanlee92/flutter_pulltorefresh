@@ -54,7 +54,7 @@ enum RefreshStatus {
   twoLeveling,
 
   ///  indicator is closing twoLevel
-  twoLevelClosing
+  twoLevelClosing,
 }
 
 ///  footer state
@@ -71,7 +71,7 @@ enum LoadStatus {
   noMore,
 
   /// indicator load failed,Initial state, which can be click retry,If you need to pull up trigger load more,you should set enableLoadingWhenFailed = true in RefreshConfiguration
-  failed
+  failed,
 }
 
 /// header indicator display style
@@ -85,7 +85,7 @@ enum RefreshStyle {
   Behind,
 
   /// this style just like flutter RefreshIndicator,showing above the content
-  Front
+  Front,
 }
 
 /// footer indicator display style
@@ -97,7 +97,7 @@ enum LoadStyle {
   HideAlways,
 
   /// indicator always own layoutExtent when loading state, the other state is 0.0 layoutExtent
-  ShowWhenLoading
+  ShowWhenLoading,
 }
 
 /// This is the most important component that provides drop-down refresh and up loading.
@@ -194,6 +194,12 @@ class SmartRefresher extends StatefulWidget {
   /// copy from ScrollView,for setting in SingleChildView,not ScrollView
   final DragStartBehavior? dragStartBehavior;
 
+  /// The padding around the scrollable content
+  final EdgeInsetsGeometry? padding;
+
+  /// How this widget should behave during hit testing
+  final HitTestBehavior? hitTestBehavior;
+
   /// creates a widget help attach the refresh and load more function
   /// controller must not be null,
   /// child is your refresh content,Note that there's a big difference between children inheriting from ScrollView or not.
@@ -202,28 +208,30 @@ class SmartRefresher extends StatefulWidget {
   /// such as AnimatedList,RecordableList,doesn't allow to put into child,it will wrap it into SliverToBoxAdapter
   /// If you don't need pull down refresh ,just enablePullDown = false,
   /// If you  need pull up load ,just enablePullUp = true
-  SmartRefresher(
-      {Key? key,
-      required this.controller,
-      this.child,
-      this.header,
-      this.footer,
-      this.enablePullDown = true,
-      this.enablePullUp = false,
-      this.enableTwoLevel = false,
-      this.onRefresh,
-      this.onLoading,
-      this.onTwoLevel,
-      this.dragStartBehavior,
-      this.primary,
-      this.cacheExtent,
-      this.semanticChildCount,
-      this.reverse,
-      this.physics,
-      this.scrollDirection,
-      this.scrollController})
-      : builder = null,
-        super(key: key);
+  SmartRefresher({
+    Key? key,
+    required this.controller,
+    this.child,
+    this.header,
+    this.footer,
+    this.enablePullDown = true,
+    this.enablePullUp = false,
+    this.enableTwoLevel = false,
+    this.onRefresh,
+    this.onLoading,
+    this.onTwoLevel,
+    this.dragStartBehavior,
+    this.primary,
+    this.cacheExtent,
+    this.semanticChildCount,
+    this.reverse,
+    this.physics,
+    this.scrollDirection,
+    this.scrollController,
+    this.padding,
+    this.hitTestBehavior,
+  }) : builder = null,
+       super(key: key);
 
   /// creates a widget help attach the refresh and load more function
   /// controller must not be null,builder must not be null
@@ -242,18 +250,20 @@ class SmartRefresher extends StatefulWidget {
     this.onRefresh,
     this.onLoading,
     this.onTwoLevel,
-  })  : header = null,
-        footer = null,
-        child = null,
-        scrollController = null,
-        scrollDirection = null,
-        physics = null,
-        reverse = null,
-        semanticChildCount = null,
-        dragStartBehavior = null,
-        cacheExtent = null,
-        primary = null,
-        super(key: key);
+    this.padding,
+    this.hitTestBehavior,
+  }) : header = null,
+       footer = null,
+       child = null,
+       scrollController = null,
+       scrollDirection = null,
+       physics = null,
+       reverse = null,
+       semanticChildCount = null,
+       dragStartBehavior = null,
+       cacheExtent = null,
+       primary = null,
+       super(key: key);
 
   static SmartRefresher? of(BuildContext? context) {
     return context!.findAncestorWidgetOfExactType<SmartRefresher>();
@@ -296,11 +306,7 @@ class SmartRefresherState extends State<SmartRefresher> {
         slivers = List.from(child.buildSlivers(context), growable: true);
       }
     } else if (child is! Scrollable) {
-      slivers = [
-        SliverRefreshBody(
-          child: child ?? Container(),
-        )
-      ];
+      slivers = [SliverRefreshBody(child: child ?? Container())];
     }
     if (widget.enablePullDown || widget.enableTwoLevel) {
       slivers?.insert(0, widget.header ?? (configuration?.headerBuilder != null ? configuration?.headerBuilder!() : null) ?? defaultHeader);
@@ -314,25 +320,21 @@ class SmartRefresherState extends State<SmartRefresher> {
   }
 
   ScrollPhysics _getScrollPhysics(RefreshConfiguration? conf, ScrollPhysics physics) {
-    final bool isBouncingPhysics = physics is BouncingScrollPhysics ||
+    final bool isBouncingPhysics =
+        physics is BouncingScrollPhysics ||
         (physics is AlwaysScrollableScrollPhysics && ScrollConfiguration.of(context).getScrollPhysics(context).runtimeType == BouncingScrollPhysics);
     return _physics = RefreshPhysics(
-            dragSpeedRatio: conf?.dragSpeedRatio ?? 1,
-            springDescription: conf?.springDescription ??
-                const SpringDescription(
-                  mass: 2.2,
-                  stiffness: 150,
-                  damping: 16,
-                ),
-            controller: widget.controller,
-            enableScrollWhenTwoLevel: conf?.enableScrollWhenTwoLevel ?? true,
-            updateFlag: _updatePhysics ? 0 : 1,
-            enableScrollWhenRefreshCompleted: conf?.enableScrollWhenRefreshCompleted ?? false,
-            maxUnderScrollExtent: conf?.maxUnderScrollExtent ?? (isBouncingPhysics ? double.infinity : 0.0),
-            maxOverScrollExtent: conf?.maxOverScrollExtent ?? (isBouncingPhysics ? double.infinity : 60.0),
-            topHitBoundary: conf?.topHitBoundary ?? (isBouncingPhysics ? double.infinity : 0.0), // need to fix default value by ios or android later
-            bottomHitBoundary: conf?.bottomHitBoundary ?? (isBouncingPhysics ? double.infinity : 0.0))
-        .applyTo(!_canDrag ? NeverScrollableScrollPhysics() : physics);
+      dragSpeedRatio: conf?.dragSpeedRatio ?? 1,
+      springDescription: conf?.springDescription ?? const SpringDescription(mass: 2.2, stiffness: 150, damping: 16),
+      controller: widget.controller,
+      enableScrollWhenTwoLevel: conf?.enableScrollWhenTwoLevel ?? true,
+      updateFlag: _updatePhysics ? 0 : 1,
+      enableScrollWhenRefreshCompleted: conf?.enableScrollWhenRefreshCompleted ?? false,
+      maxUnderScrollExtent: conf?.maxUnderScrollExtent ?? (isBouncingPhysics ? double.infinity : 0.0),
+      maxOverScrollExtent: conf?.maxOverScrollExtent ?? (isBouncingPhysics ? double.infinity : 60.0),
+      topHitBoundary: conf?.topHitBoundary ?? (isBouncingPhysics ? double.infinity : 0.0), // need to fix default value by ios or android later
+      bottomHitBoundary: conf?.bottomHitBoundary ?? (isBouncingPhysics ? double.infinity : 0.0),
+    ).applyTo(!_canDrag ? NeverScrollableScrollPhysics() : physics);
   }
 
   // build the customScrollView
@@ -492,6 +494,17 @@ class SmartRefresherState extends State<SmartRefresher> {
     if (configuration == null) {
       body = RefreshConfiguration(child: body!);
     }
+
+    // Apply padding if provided
+    if (widget.padding != null) {
+      body = Padding(padding: widget.padding!, child: body);
+    }
+
+    // Apply hitTestBehavior if provided
+    if (widget.hitTestBehavior != null) {
+      body = GestureDetector(behavior: widget.hitTestBehavior!, child: body);
+    }
+
     return LayoutBuilder(
       builder: (c2, cons) {
         viewportExtent = cons.biggest.height;
@@ -809,41 +822,37 @@ class RefreshConfiguration extends InheritedWidget {
   /// toggle of  loadmore vibrate
   final bool enableLoadMoreVibrate;
 
-  RefreshConfiguration(
-      {Key? key,
-      required this.child,
-      this.headerBuilder,
-      this.footerBuilder,
-      this.dragSpeedRatio = 1.0,
-      this.shouldFooterFollowWhenNotFull,
-      this.enableScrollWhenTwoLevel = true,
-      this.enableLoadingWhenNoData = false,
-      this.enableBallisticRefresh = false,
-      this.springDescription = const SpringDescription(
-        mass: 2.2,
-        stiffness: 150,
-        damping: 16,
-      ),
-      this.enableScrollWhenRefreshCompleted = false,
-      this.enableLoadingWhenFailed = true,
-      this.twiceTriggerDistance = 150.0,
-      this.closeTwoLevelDistance = 80.0,
-      this.skipCanRefresh = false,
-      this.maxOverScrollExtent,
-      this.enableBallisticLoad = true,
-      this.maxUnderScrollExtent,
-      this.headerTriggerDistance = 80.0,
-      this.footerTriggerDistance = 15.0,
-      this.hideFooterWhenNotFull = false,
-      this.enableRefreshVibrate = false,
-      this.enableLoadMoreVibrate = false,
-      this.topHitBoundary,
-      this.bottomHitBoundary})
-      : assert(headerTriggerDistance > 0),
-        assert(twiceTriggerDistance > 0),
-        assert(closeTwoLevelDistance > 0),
-        assert(dragSpeedRatio > 0),
-        super(key: key, child: child);
+  RefreshConfiguration({
+    Key? key,
+    required this.child,
+    this.headerBuilder,
+    this.footerBuilder,
+    this.dragSpeedRatio = 1.0,
+    this.shouldFooterFollowWhenNotFull,
+    this.enableScrollWhenTwoLevel = true,
+    this.enableLoadingWhenNoData = false,
+    this.enableBallisticRefresh = false,
+    this.springDescription = const SpringDescription(mass: 2.2, stiffness: 150, damping: 16),
+    this.enableScrollWhenRefreshCompleted = false,
+    this.enableLoadingWhenFailed = true,
+    this.twiceTriggerDistance = 150.0,
+    this.closeTwoLevelDistance = 80.0,
+    this.skipCanRefresh = false,
+    this.maxOverScrollExtent,
+    this.enableBallisticLoad = true,
+    this.maxUnderScrollExtent,
+    this.headerTriggerDistance = 80.0,
+    this.footerTriggerDistance = 15.0,
+    this.hideFooterWhenNotFull = false,
+    this.enableRefreshVibrate = false,
+    this.enableLoadMoreVibrate = false,
+    this.topHitBoundary,
+    this.bottomHitBoundary,
+  }) : assert(headerTriggerDistance > 0),
+       assert(twiceTriggerDistance > 0),
+       assert(closeTwoLevelDistance > 0),
+       assert(dragSpeedRatio > 0),
+       super(key: key, child: child);
 
   /// Construct RefreshConfiguration to copy attributes from ancestor nodes
   /// If the parameter is null, it will automatically help you to absorb the attributes of your ancestor Refresh Configuration, instead of having to copy them manually by yourself.
@@ -876,32 +885,34 @@ class RefreshConfiguration extends InheritedWidget {
     bool? enableRefreshVibrate,
     bool? enableLoadMoreVibrate,
     bool? hideFooterWhenNotFull,
-  })  : assert(RefreshConfiguration.of(context) != null,
-            "search RefreshConfiguration anscestor return null,please  Make sure that RefreshConfiguration is the ancestor of that element"),
-        headerBuilder = headerBuilder ?? RefreshConfiguration.of(context)!.headerBuilder,
-        footerBuilder = footerBuilder ?? RefreshConfiguration.of(context)!.footerBuilder,
-        dragSpeedRatio = dragSpeedRatio ?? RefreshConfiguration.of(context)!.dragSpeedRatio,
-        twiceTriggerDistance = twiceTriggerDistance ?? RefreshConfiguration.of(context)!.twiceTriggerDistance,
-        headerTriggerDistance = headerTriggerDistance ?? RefreshConfiguration.of(context)!.headerTriggerDistance,
-        footerTriggerDistance = footerTriggerDistance ?? RefreshConfiguration.of(context)!.footerTriggerDistance,
-        springDescription = springDescription ?? RefreshConfiguration.of(context)!.springDescription,
-        hideFooterWhenNotFull = hideFooterWhenNotFull ?? RefreshConfiguration.of(context)!.hideFooterWhenNotFull,
-        maxOverScrollExtent = maxOverScrollExtent ?? RefreshConfiguration.of(context)!.maxOverScrollExtent,
-        maxUnderScrollExtent = maxUnderScrollExtent ?? RefreshConfiguration.of(context)!.maxUnderScrollExtent,
-        topHitBoundary = topHitBoundary ?? RefreshConfiguration.of(context)!.topHitBoundary,
-        bottomHitBoundary = bottomHitBoundary ?? RefreshConfiguration.of(context)!.bottomHitBoundary,
-        skipCanRefresh = skipCanRefresh ?? RefreshConfiguration.of(context)!.skipCanRefresh,
-        enableScrollWhenRefreshCompleted = enableScrollWhenRefreshCompleted ?? RefreshConfiguration.of(context)!.enableScrollWhenRefreshCompleted,
-        enableScrollWhenTwoLevel = enableScrollWhenTwoLevel ?? RefreshConfiguration.of(context)!.enableScrollWhenTwoLevel,
-        enableBallisticRefresh = enableBallisticRefresh ?? RefreshConfiguration.of(context)!.enableBallisticRefresh,
-        enableBallisticLoad = enableBallisticLoad ?? RefreshConfiguration.of(context)!.enableBallisticLoad,
-        enableLoadingWhenNoData = enableLoadingWhenNoData ?? RefreshConfiguration.of(context)!.enableLoadingWhenNoData,
-        enableLoadingWhenFailed = enableLoadingWhenFailed ?? RefreshConfiguration.of(context)!.enableLoadingWhenFailed,
-        closeTwoLevelDistance = closeTwoLevelDistance ?? RefreshConfiguration.of(context)!.closeTwoLevelDistance,
-        enableRefreshVibrate = enableRefreshVibrate ?? RefreshConfiguration.of(context)!.enableRefreshVibrate,
-        enableLoadMoreVibrate = enableLoadMoreVibrate ?? RefreshConfiguration.of(context)!.enableLoadMoreVibrate,
-        shouldFooterFollowWhenNotFull = shouldFooterFollowWhenNotFull ?? RefreshConfiguration.of(context)!.shouldFooterFollowWhenNotFull,
-        super(key: key, child: child);
+  }) : assert(
+         RefreshConfiguration.of(context) != null,
+         "search RefreshConfiguration anscestor return null,please  Make sure that RefreshConfiguration is the ancestor of that element",
+       ),
+       headerBuilder = headerBuilder ?? RefreshConfiguration.of(context)!.headerBuilder,
+       footerBuilder = footerBuilder ?? RefreshConfiguration.of(context)!.footerBuilder,
+       dragSpeedRatio = dragSpeedRatio ?? RefreshConfiguration.of(context)!.dragSpeedRatio,
+       twiceTriggerDistance = twiceTriggerDistance ?? RefreshConfiguration.of(context)!.twiceTriggerDistance,
+       headerTriggerDistance = headerTriggerDistance ?? RefreshConfiguration.of(context)!.headerTriggerDistance,
+       footerTriggerDistance = footerTriggerDistance ?? RefreshConfiguration.of(context)!.footerTriggerDistance,
+       springDescription = springDescription ?? RefreshConfiguration.of(context)!.springDescription,
+       hideFooterWhenNotFull = hideFooterWhenNotFull ?? RefreshConfiguration.of(context)!.hideFooterWhenNotFull,
+       maxOverScrollExtent = maxOverScrollExtent ?? RefreshConfiguration.of(context)!.maxOverScrollExtent,
+       maxUnderScrollExtent = maxUnderScrollExtent ?? RefreshConfiguration.of(context)!.maxUnderScrollExtent,
+       topHitBoundary = topHitBoundary ?? RefreshConfiguration.of(context)!.topHitBoundary,
+       bottomHitBoundary = bottomHitBoundary ?? RefreshConfiguration.of(context)!.bottomHitBoundary,
+       skipCanRefresh = skipCanRefresh ?? RefreshConfiguration.of(context)!.skipCanRefresh,
+       enableScrollWhenRefreshCompleted = enableScrollWhenRefreshCompleted ?? RefreshConfiguration.of(context)!.enableScrollWhenRefreshCompleted,
+       enableScrollWhenTwoLevel = enableScrollWhenTwoLevel ?? RefreshConfiguration.of(context)!.enableScrollWhenTwoLevel,
+       enableBallisticRefresh = enableBallisticRefresh ?? RefreshConfiguration.of(context)!.enableBallisticRefresh,
+       enableBallisticLoad = enableBallisticLoad ?? RefreshConfiguration.of(context)!.enableBallisticLoad,
+       enableLoadingWhenNoData = enableLoadingWhenNoData ?? RefreshConfiguration.of(context)!.enableLoadingWhenNoData,
+       enableLoadingWhenFailed = enableLoadingWhenFailed ?? RefreshConfiguration.of(context)!.enableLoadingWhenFailed,
+       closeTwoLevelDistance = closeTwoLevelDistance ?? RefreshConfiguration.of(context)!.closeTwoLevelDistance,
+       enableRefreshVibrate = enableRefreshVibrate ?? RefreshConfiguration.of(context)!.enableRefreshVibrate,
+       enableLoadMoreVibrate = enableLoadMoreVibrate ?? RefreshConfiguration.of(context)!.enableLoadMoreVibrate,
+       shouldFooterFollowWhenNotFull = shouldFooterFollowWhenNotFull ?? RefreshConfiguration.of(context)!.shouldFooterFollowWhenNotFull,
+       super(key: key, child: child);
 
   static RefreshConfiguration? of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<RefreshConfiguration>();
